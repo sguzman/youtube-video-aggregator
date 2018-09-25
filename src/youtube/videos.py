@@ -39,10 +39,14 @@ def soup_channel(chan_serial):
 
 
 def index_nest(obj, keys):
-    if len(keys) is 0:
-        return obj
-    else:
-        return index_nest(obj[keys[0]], keys[1:])
+    try:
+        tmp = obj
+        for i in keys:
+            tmp = tmp[i]
+
+        return tmp
+    except:
+        return None
 
 
 def get_video_items_cont(obj):
@@ -144,9 +148,7 @@ def video_ids(items):
     return vids
 
 
-def main():
-    chan_serial = 'UC0rZoXAD5lxgBHMsjrGwWWQ'
-
+def videos(chan_serial):
     soup = soup_channel(chan_serial)
     script = select_script_tag(soup)
     json_data = process_script(script)
@@ -154,8 +156,7 @@ def main():
     vids = get_video_items(json_data)
     cont = get_cont_token(json_data)
 
-    idx = 0
-    while True:
+    while cont is not None:
         resp = soup_next_page(cont)
         json_data = json.loads(resp.text)
 
@@ -163,8 +164,5 @@ def main():
         vids.extend(items)
 
         cont = get_cont_token_cont(json_data)
-        print(len(vids))
-        idx = idx + 1
 
-
-main()
+    return vids

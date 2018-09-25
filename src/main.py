@@ -4,7 +4,9 @@ import queue
 import threading
 import psycopg2
 import json
+import random
 from multiprocessing.dummy import Pool
+import youtube.videos
 
 
 seen = queue.Queue()
@@ -14,19 +16,14 @@ conn = psycopg2.connect(user='root', password='', host='127.0.0.1', port='5432',
 
 
 def get_chans():
-    postgresql_select_query = 'SELECT channel_id FROM youtube.channels.channels'
+    postgresql_select_query = 'SELECT * FROM youtube.channels.channels'
     cursor = conn.cursor()
     cursor.execute(postgresql_select_query)
     records = cursor.fetchall()
-
-    channels = list()
-    for i in records:
-        channels.append(i[0])
-
-    print(len(channels), 'channels from table')
+    print(len(records), 'channels from table')
 
     cursor.close()
-    return channels
+    return records
 
 
 def get_vids():
@@ -45,13 +42,12 @@ def get_vids():
     return channels
 
 
-def insert_vids(cursor, data, incumbent_videos):
-    sql_insert_chann = 'INSERT INTO youtube.channels.channels (channel_id) VALUES (%s)'
+def insert_vids(cursor, channel_id, data, incumbent_videos):
+    sql_insert_chann = 'INSERT INTO youtube.channels.videos (chan_id, video_id) VALUES (%s, %s)'
 
     for datum in data:
-        if datum not in incumbent_videos:
-            print(datum)
-            cursor.execute(sql_insert_chann, [datum])
+        if datum[0] not in incumbent_videos:
+            cursor.execute(sql_insert_chann, [channel_id, datum])
 
 
 def insertion_daemon():
@@ -59,15 +55,28 @@ def insertion_daemon():
 
     while True:
         channel_id, videos = seen.get(block=True)
+        print(channel_id, videos)
         cursor = conn.cursor()
-        insert_vids(cursor, channel_id, vids)
+        insert_vids(cursor, channel_id, videos, vids)
         conn.commit()
         cursor.close()
 
 
+def channel_process(chan):
+    chan_serial = chan[0]
+    chan_id = chan[1]
+
+    vids = youtube.videos.videos(chan_serial)
+    seen.put((chan_id, vids))
+
+
 def main():
     threading.Thread(target=insertion_daemon, daemon=True).start()
-    channels = get_chans(conn)
+    channels = get_chans()
+    random.shuffle(channels)
 
-    pool.map(vids, channels)
+    pool.map(channel_process, channels)
     print('done')
+
+
+main()
