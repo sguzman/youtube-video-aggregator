@@ -45,9 +45,16 @@ def get_vids():
 def insert_vids(cursor, channel_id, data, incumbent_videos):
     sql_insert_chann = 'INSERT INTO youtube.channels.videos (chan_id, video_id) VALUES (%s, %s)'
 
+    print(channel_id)
+    hit_one = False
     for datum in data:
-        if datum[0] not in incumbent_videos:
+        hit_one = datum not in incumbent_videos
+        if hit_one:
+            print(datum, end=', ')
             cursor.execute(sql_insert_chann, [channel_id, datum])
+
+    if hit_one:
+        print()
 
 
 def insertion_daemon():
@@ -55,7 +62,6 @@ def insertion_daemon():
 
     while True:
         channel_id, videos = seen.get(block=True)
-        print(channel_id, videos)
         cursor = conn.cursor()
         insert_vids(cursor, channel_id, videos, vids)
         conn.commit()
